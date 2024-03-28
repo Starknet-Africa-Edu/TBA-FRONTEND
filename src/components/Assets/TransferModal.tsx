@@ -1,8 +1,8 @@
 import { Transition, Dialog } from "@headlessui/react";
 import Image from "next/image";
-import { Fragment } from "react";
-import { FaChevronRight } from "react-icons/fa";
+import { ChangeEvent, Fragment, useState } from "react";
 import CancelIcon from "svg/CancelIcon";
+import { useTokenBoundSDK } from "@hooks/index";
 
 type Props = {
   openModal: boolean;
@@ -10,8 +10,9 @@ type Props = {
   abbreviation: string;
   name: string;
   balance: string;
-  price: string;
   src: string;
+  tokenBoundAddress: string;
+  contractAddress: string;
 };
 
 const TransferModal = ({
@@ -19,10 +20,50 @@ const TransferModal = ({
   openModal,
   balance,
   name,
-  price,
+  tokenBoundAddress,
   abbreviation,
   src,
+  contractAddress,
 }: Props) => {
+  const [transferDetails, setTransferDetails] = useState({
+    recipientWalletAddress: "",
+    amount: "",
+  });
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    let newValue = value;
+    if (name === "amount") {
+      const enteredAmount = parseFloat(value);
+      if (isNaN(enteredAmount)) {
+        newValue = "";
+      } else {
+        const availableBalance = parseFloat(balance);
+        if (enteredAmount > availableBalance) {
+          newValue = balance.toString();
+        }
+      }
+    }
+
+    setTransferDetails((prevState) => ({
+      ...prevState,
+      [name]: newValue,
+    }));
+  };
+
+  const { tokenbound } = useTokenBoundSDK();
+  const transferERC20Assets = async () => {
+    try {
+      await tokenbound.transferERC20({
+        tbaAddress: tokenBoundAddress,
+        contractAddress: contractAddress,
+        recipient: transferDetails.recipientWalletAddress,
+        amount: +transferDetails.amount * 1e18,
+      });
+    } catch (error) {
+      console.log("there was an error transferring the assets");
+    }
+  };
+
   return (
     <Transition appear show={openModal} as={Fragment}>
       <Dialog as="div" className="relative z-[999]" onClose={closeModal}>
@@ -82,13 +123,7 @@ const TransferModal = ({
                       <div className="flex gap-1 items-center">
                         <div>
                           <p>{balance}</p>
-                          <p className="text-[.875em] text-[#5a5a5a]">
-                            ${price}
-                          </p>
                         </div>
-                        <button>
-                          <FaChevronRight size={24} />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -96,22 +131,45 @@ const TransferModal = ({
                     <div className="flex flex-col gap-2">
                       <label htmlFor="walletAddress">Wallet Address</label>
                       <input
+                        required
                         type="text"
                         id="walletAddress"
-                        placeholder="Enter Wallet Address "
+                        name="recipientWalletAddress"
+                        placeholder="Enter Wallet Address"
+                        value={transferDetails.recipientWalletAddress}
+                        onChange={handleInputChange}
                         className=" p-[.8rem] border-solid border-[1px] rounded-[8px] border-[#7A7A7A]"
                       />
                     </div>
                     <div className="flex flex-col gap-2">
                       <label htmlFor="amount">Amount</label>
                       <input
+                        required
                         className=" p-[.8rem] border-solid border-[1px] rounded-[8px] border-[#7A7A7A]"
                         type="text"
                         id="amount"
+                        name="amount"
+                        value={transferDetails.amount}
+                        onChange={handleInputChange}
                         placeholder="Enter Amount"
                       />
                     </div>
-                    <button className="w-full p-[.8rem] bg-deep-blue rounded-[8px] text-white">
+                    <button
+                      disabled={
+                        !transferDetails.recipientWalletAddress ||
+                        !transferDetails.amount
+                      }
+                      onClick={(e) => {
+                        e.preventDefault();
+                        transferERC20Assets();
+                      }}
+                      className={`w-full p-[.8rem] bg-deep-blue rounded-[8px] text-white ${
+                        !transferDetails.recipientWalletAddress ||
+                        !transferDetails.amount
+                          ? "opacity-50"
+                          : "opacity-100"
+                      }`}
+                    >
                       send &rarr;
                     </button>
                   </form>

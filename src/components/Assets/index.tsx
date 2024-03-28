@@ -3,12 +3,14 @@ import ETH from "@public/eth.png";
 import USDC from "@public/USDC.png";
 import DAI from "@public/DAI.png";
 import USDT from "@public/usdt.png";
+import STRK from "@public/starknet.jpeg";
 import { useContractRead } from "@starknet-react/core";
 import {
   DaiTokenAddress,
   EtherTokenAddress,
   UsdcTokenAddress,
   usdtTokenAddress,
+  starkTokenAddress,
 } from "@utils/constants";
 import Erc20Abi from "@abis/token.abi.json";
 import TransferModal from "./TransferModal";
@@ -74,12 +76,14 @@ function Asset({ tokenBoundAddress }: AssetProps) {
     abbreviation: "",
     balance: "",
     name: "",
+    contractAddress: "",
   });
   const toggleTransferModal = (asset: {
     src: string;
     abbreviation: string;
     balance: string;
     name: string;
+    contractAddress: string;
   }) => {
     setSelectedAsset(asset);
     setOpenTransferModal(!openTransferModal);
@@ -93,6 +97,17 @@ function Asset({ tokenBoundAddress }: AssetProps) {
     error: ethError,
   } = useContractRead({
     address: EtherTokenAddress,
+    abi: Erc20Abi,
+    functionName: "balanceOf",
+    args: [tokenBoundAddress!],
+    watch: true,
+  });
+  const {
+    data: stark,
+    isLoading: starkLoading,
+    error: starkError,
+  } = useContractRead({
+    address: starkTokenAddress,
     abi: Erc20Abi,
     functionName: "balanceOf",
     args: [tokenBoundAddress!],
@@ -136,6 +151,8 @@ function Asset({ tokenBoundAddress }: AssetProps) {
   // @ts-ignore
   let ETH_BALANCE = eth?.balance?.low.toString() / 1e18;
   // @ts-ignore
+  let STARK_BALANCE = stark?.balance?.low.toString() / 1e18;
+  // @ts-ignore
   let DAI_BALANCE = dai?.balance?.low.toString() / 1e18;
   // @ts-ignore
   let USDC_BALANCE = usdc?.balance?.low.toString() / 1e6;
@@ -165,6 +182,28 @@ function Asset({ tokenBoundAddress }: AssetProps) {
               ? "0.000"
               : ETH_BALANCE.toFixed(4),
             name: "Ethereum",
+            contractAddress: EtherTokenAddress,
+          })
+        }
+      />
+
+      <FungibleAsset
+        balance={
+          Number.isNaN(STARK_BALANCE) ? "0.000" : STARK_BALANCE.toFixed(4)
+        }
+        err={starkError}
+        loading={starkLoading}
+        src={STRK.src}
+        unit="STRK"
+        toggleModal={() =>
+          toggleTransferModal({
+            src: STRK.src,
+            abbreviation: "STRK",
+            balance: Number.isNaN(STARK_BALANCE)
+              ? "0.000"
+              : STARK_BALANCE.toFixed(4),
+            name: "Stark",
+            contractAddress: starkTokenAddress,
           })
         }
       />
@@ -183,6 +222,7 @@ function Asset({ tokenBoundAddress }: AssetProps) {
               ? "0.000"
               : USDC_BALANCE.toFixed(4),
             name: "USDC",
+            contractAddress: starkTokenAddress,
           })
         }
       />
@@ -201,6 +241,7 @@ function Asset({ tokenBoundAddress }: AssetProps) {
               ? "0.000"
               : DAI_BALANCE.toFixed(4),
             name: "DAI",
+            contractAddress: DaiTokenAddress,
           })
         }
       />
@@ -219,6 +260,7 @@ function Asset({ tokenBoundAddress }: AssetProps) {
               ? "0.000"
               : USDT_BALANCE.toFixed(4),
             name: "USDT",
+            contractAddress: usdtTokenAddress,
           })
         }
       />
@@ -229,7 +271,8 @@ function Asset({ tokenBoundAddress }: AssetProps) {
         abbreviation={selectedAsset?.abbreviation}
         balance={selectedAsset?.balance}
         name={selectedAsset?.name}
-        price=""
+        contractAddress={selectedAsset?.contractAddress}
+        tokenBoundAddress={tokenBoundAddress}
       />
     </div>
   );
